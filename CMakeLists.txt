@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.0.1)
 project(rpmtrail)
-include(dependencies)
+include(ExternalProject)
 
 # SourcetrailDB
 set(SOURCETRAILDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/SourcetrailDB)
 set(SOURCETRAILDB_LIB_INCLUDE ${SOURCETRAILDB_SOURCE_DIR}/core/include)
 set(SOURCETRAILDB_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/SourcetrailDB-build/core)
-dependencies_Add(SourcetrailDB
+ExternalProject_add(SourcetrailDB
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}
     GIT_SUBMODULES dependencies/SourcetrailDB
     SOURCE_DIR ${SOURCETRAILDB_SOURCE_DIR}

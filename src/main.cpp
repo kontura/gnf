@@ -27,7 +27,7 @@ int main(int argc, const char *argv[])
 
 	if (argc < 3 || argc > 4)
 	{
-		std::cout << "usage: cpp_api_example <database_path> <source_path> <optional:database_version>";
+		std::cout << "usage: cpp_api_example <database_path> <source_path> <optional:database_version>" << std::endl;
 		return 1;
 	}
 
@@ -75,6 +75,8 @@ int main(int argc, const char *argv[])
 
     // records a named non-indexed symbol without type
     dbWriter.recordSymbol({ "::", { { "void", "foo", "()" } } });
+    dbWriter.recordSymbol({ "::", { { "void", "bar", "()" } } });
+    dbWriter.recordSymbol({ "::", { { "void", "baz", "()" } } });
 
 
 	// record source file by passing it's absolute path
