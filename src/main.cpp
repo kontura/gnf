@@ -2,7 +2,10 @@
 #include <fstream>
 #include <iostream>
 
+#include <libdnf/base/base.hpp>
+
 #include "SourcetrailDBWriter.h"
+
 
 void findAndReplaceAll(std::string &data, const std::string &toSearch, const std::string &replaceStr)
 {
@@ -24,6 +27,9 @@ int main(int argc, const char *argv[])
 	std::cout << "SourcetrailDB version: " << dbWriter.getVersionString() << std::endl;
 	std::cout << "Supported database version: " << dbWriter.getSupportedDatabaseVersion() << std::endl;
 	std::cout << std::endl;
+
+    // create a new Base object
+    libdnf::Base base;
 
 	if (argc < 3 || argc > 4)
 	{
@@ -74,9 +80,11 @@ int main(int argc, const char *argv[])
 	}
 
     // records a named non-indexed symbol without type
-    dbWriter.recordSymbol({ "::", { { "void", "foo", "()" } } });
     dbWriter.recordSymbol({ "::", { { "void", "bar", "()" } } });
     dbWriter.recordSymbol({ "::", { { "void", "baz", "()" } } });
+    dbWriter.recordSymbol({ "::", { { "void", "baf", "()" } } });
+    dbWriter.recordSymbol({ "::", { { "void", "bad", "()" } } });
+    dbWriter.recordSymbol({ "::", { { "void", "base", "()" } } });
 
 
 	// record source file by passing it's absolute path

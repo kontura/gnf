@@ -12,24 +12,32 @@ ExternalProject_add(SourcetrailDB
     SOURCE_DIR ${SOURCETRAILDB_SOURCE_DIR}
     INSTALL_COMMAND ""
 )
-include_directories( ${SOURCETRAILDB_LIB_INCLUDE} )
+
+set(LIBDNF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/libdnf)
+set(LIBDNF_LIB_INCLUDE ${LIBDNF_SOURCE_DIR}/include)
+
+# libdnf
+add_subdirectory(dependencies/libdnf)
+
+
 add_library(sourcetraildb SHARED IMPORTED)
 set_target_properties(sourcetraildb PROPERTIES
     IMPORTED_LOCATION ${SOURCETRAILDB_LIB_DIR}/libsourcetraildb.a)
 
 # rpmtrail
+include_directories( ${SOURCETRAILDB_LIB_INCLUDE} )
+include_directories( ${LIBDNF_LIB_INCLUDE} )
+include_directories( ${LIBDNF_SOURCE_DIR} )
 
 add_executable(rpmtrail
     src/main.cpp
 )
 
-target_link_libraries(rpmtrail
-    PRIVATE sourcetraildb
-    -pthread
-    -ldl)
+target_link_libraries(rpmtrail PRIVATE sourcetraildb -pthread -ldl)
+target_link_libraries(rpmtrail PUBLIC libdnf libdnf-cli)
 
 set_target_properties(rpmtrail PROPERTIES
     CXX_STANDARD 17
     CXX_EXTENSIONS OFF
 )
-add_dependencies(rpmtrail SourcetrailDB)
+add_dependencies(rpmtrail SourcetrailDB libdnf)
