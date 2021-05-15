@@ -1,109 +1,194 @@
-//#include <cstdlib>
-//#include <fstream>
-//#include <map>
-//#include <iostream>
-//
-#include <libdnf/base/base.hpp>
-#include <libdnf/rpm/repo.hpp>
-#include <libdnf/rpm/solv_query.hpp>
+#include "gnf.hpp"
+#include "package_layout.hpp"
 
-////#define GLFW_INCLUDE_VULKAN
-//#include <GLFW/glfw3.h>
-//
-//
-//#include <stdlib.h>
-//#include <stdio.h>
+#define GLEW_STATIC
+#include <GL/glew.h>
 
-//static const struct
-//{
-//    float x, y;
-//    float r, g, b;
-//} vertices[3] =
-//{
-//    { -0.6f, -0.4f, 1.f, 0.f, 0.f },
-//    {  0.6f, -0.4f, 0.f, 1.f, 0.f },
-//    {   0.f,  0.6f, 0.f, 0.f, 1.f }
-//};
-// 
-//static const char* vertex_shader_text =
-//"#version 110\n"
-//"uniform mat4 MVP;\n"
-//"attribute vec3 vCol;\n"
-//"attribute vec2 vPos;\n"
-//"varying vec3 color;\n"
-//"void main()\n"
-//"{\n"
-//"    gl_Position = MVP * vec4(vPos, 0.0, 1.0);\n"
-//"    color = vCol;\n"
-//"}\n";
-// 
-//static const char* fragment_shader_text =
-//"#version 110\n"
-//"varying vec3 color;\n"
-//"void main()\n"
-//"{\n"
-//"    gl_FragColor = vec4(color, 1.0);\n"
-//"}\n";
-// 
-//static void error_callback(int error, const char* description)
-//{
-//    fprintf(stderr, "Error: %s\n", description);
-//}
-// 
-//static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-//{
-//    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-//        glfwSetWindowShouldClose(window, GLFW_TRUE);
-//}
-//
-//
-//
-//int main(int argc, const char *argv[])
-//{
-//
-//	std::string sourcePath = argv[2];
-
-    // create a new Base object
-//    libdnf::Base base;
-//    auto & conf = base.get_config();
-//    std::string installroot("/home/amatej/tmp/sourcetrail_rpm_test");
-//    conf.installroot().set(libdnf::Option::Priority::RUNTIME, installroot);
-//    conf.cachedir().set(libdnf::Option::Priority::RUNTIME, installroot + "/var/cache/dnf");
-//    auto & repo_sack = base.get_rpm_repo_sack();
-//        std::cout << "pkg: " << sourcePath <<  std::endl;
-//    repo_sack.new_repos_from_file(sourcePath);
-//    auto repos = repo_sack.new_query();
-//
-//    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "35"}, };
-//
-//    // create a reference to the Base's rpm_sack for better code readability
-//    auto & solv_sack = base.get_rpm_solv_sack();
-//
-//    using LoadFlags = libdnf::rpm::SolvSack::LoadRepoFlags;
-//    auto flags = LoadFlags::USE_FILELISTS | LoadFlags::USE_PRESTO | LoadFlags::USE_UPDATEINFO | LoadFlags::USE_OTHER;
-//
-//    for (auto & repo : repos.get_data()) {
-//        (*repo.get()).set_substitutions(m);
-//        (*repo.get()).load();
-//        solv_sack.load_repo((*repo.get()), flags);
-//    }
-//
-//    libdnf::rpm::SolvQuery query(&solv_sack);
-//    query.ifilter_arch({"x86_64"}).ifilter_latest(1);
-//
-//	std::cout << "done!" << std::endl;
-    //PFN_vkCreateInstance instance = (PFN_vkCreateInstance) glfwGetInstanceProcAddress(NULL, "vkCreateInstance");
-    //PFN_vkCreateDevice pfnCreateDevice = (PFN_vkCreateDevice) glfwGetInstanceProcAddress(instance, "vkCreateDevice");
-    //PFN_vkGetDeviceProcAddr pfnGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr) glfwGetInstanceProcAddress(instance, "vkGetDeviceProcAddr");
-
+#define GL_GLEXT_PROTOTYPES
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-static void error_callback(int error, const char* description)
+#define DISPLAY_WIDTH 1920
+#define DISPLAY_HEIGHT 1080
+
+gnfContext gnf = {
+    .width = DISPLAY_WIDTH,
+    .height = DISPLAY_HEIGHT,
+};
+
+//TODO(amatej): Do not render stuff outside of view, but how though?
+
+const char *const vert_shader_source =
+    "#version 330 core\n"
+    "\n"
+    "uniform vec2 resolution;\n"
+    "\n"
+    "layout(location = 0) in vec2 position;\n"
+    "layout(location = 1) in vec4 color;\n"
+    "\n"
+    "out vec4 output_color;\n"
+    "\n"
+    "vec2 flip(vec2 p) {\n"
+    "    return vec2(p.x, resolution.y - p.y);\n"
+    "}\n"
+    "\n"
+    "void main() {\n"
+    "    gl_Position = vec4((flip(position) - resolution * 0.5) / (resolution * 0.5), 0.0, 1.0) - vec4(0, 0, 0, 0);\n"
+    "    output_color = color;\n"
+    "}\n"
+    "\n";
+
+const char *const frag_shader_source =
+    "#version 330 core\n"
+    "\n"
+    "in vec4 output_color;\n"
+    "out vec4 final_color;\n"
+    "\n"
+    "void main() {\n"
+    "    final_color = output_color;\n"
+    "}\n"
+    "\n";
+
+const char *shader_type_as_cstr(GLuint shader)
 {
-    fputs(description, stderr);
+    switch (shader) {
+    case GL_VERTEX_SHADER:
+        return "GL_VERTEX_SHADER";
+    case GL_FRAGMENT_SHADER:
+        return "GL_FRAGMENT_SHADER";
+    default:
+        return "(Unknown)";
+    }
 }
+
+bool compile_shader_source(const GLchar *source, GLenum shader_type, GLuint *shader)
+{
+    *shader = glCreateShader(shader_type);
+    glShaderSource(*shader, 1, &source, NULL);
+    glCompileShader(*shader);
+
+    GLint compiled = 0;
+    glGetShaderiv(*shader, GL_COMPILE_STATUS, &compiled);
+
+    if (!compiled) {
+        GLchar message[1024];
+        GLsizei message_size = 0;
+        glGetShaderInfoLog(*shader, sizeof(message), &message_size, message);
+        fprintf(stderr, "ERROR: could not compile %s\n", shader_type_as_cstr(shader_type));
+        fprintf(stderr, "%.*s\n", message_size, message);
+        return false;
+    }
+
+    return true;
+}
+
+bool link_program(GLuint vert_shader, GLuint frag_shader, GLuint *program)
+{
+    *program = glCreateProgram();
+
+    glAttachShader(*program, vert_shader);
+    glAttachShader(*program, frag_shader);
+    glLinkProgram(*program);
+
+    GLint linked = 0;
+    glGetProgramiv(*program, GL_LINK_STATUS, &linked);
+    if (!linked) {
+        GLsizei message_size = 0;
+        GLchar message[1024];
+
+        glGetProgramInfoLog(*program, sizeof(message), &message_size, message);
+        fprintf(stderr, "Program Linking: %.*s\n", message_size, message);
+    }
+
+    return program;
+}
+
+typedef enum {
+    GNF_POSITION_ATTRIB = 0,
+    GNF_COLOR_ATTRIB,
+    COUNT_GNF_ATTRIBS
+} gnf_Attribs;
+
+typedef struct {
+    GLuint vao;
+    GLuint vert_vbo;
+} gnf_GL;
+
+void gnf_gl_begin(gnf_GL *gnf_gl, const gnfContext *gnf)
+{
+    glGenVertexArrays(1, &gnf_gl->vao);
+    glBindVertexArray(gnf_gl->vao);
+
+    glGenBuffers(1, &gnf_gl->vert_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, gnf_gl->vert_vbo);
+    glBufferData(GL_ARRAY_BUFFER,
+                 sizeof(gnf->vertices),
+                 gnf->vertices,
+                 GL_DYNAMIC_DRAW);
+
+    // Position
+    {
+        const gnf_Attribs attrib = GNF_POSITION_ATTRIB;
+        glEnableVertexAttribArray(attrib);
+        glVertexAttribPointer(
+            attrib,             // index
+            2,                  // numComponents
+            GL_FLOAT,           // type
+            0,                  // normalized
+            sizeof(gnf->vertices[0]), // stride
+            0                           // offset
+        );
+    }
+
+    // Color
+    {
+        const gnf_Attribs attrib = GNF_COLOR_ATTRIB;
+        glEnableVertexAttribArray(attrib);
+        glVertexAttribPointer(
+            attrib,             // index
+            4,                  // numComponents
+            GL_FLOAT,           // type
+            0,                  // normalized
+            sizeof(gnf->vertices[0]),                 // stride
+            (void*) sizeof(gnf->vertices[0].position) // offset
+        );
+    }
+}
+
+void gnf_gl_render(gnf_GL *gnf_gl, const gnfContext *gnf)
+{
+    glBindVertexArray(gnf_gl->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, gnf_gl->vert_vbo);
+    glBufferSubData(
+        GL_ARRAY_BUFFER,
+        0,
+        gnf->vertices_count * sizeof(gnf->vertices[0]),
+        gnf->vertices);
+
+    glDrawElements(GL_TRIANGLES,
+                   gnf->triangles_count * TRIANGLE_COUNT,
+                   GL_UNSIGNED_INT,
+                   gnf->triangles);
+}
+
+void MessageCallback(GLenum source,
+                     GLenum type,
+                     GLuint id,
+                     GLenum severity,
+                     GLsizei length,
+                     const GLchar* message,
+                     const void* userParam)
+{
+    (void) source;
+    (void) id;
+    (void) length;
+    (void) userParam;
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+            type, severity, message);
+}
+
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -111,166 +196,166 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
+void window_size_callback(GLFWwindow* window, int width, int height)
+{
+    (void) window;
+    glViewport(
+        width / 2 - DISPLAY_WIDTH / 2,
+        height / 2 - DISPLAY_HEIGHT / 2,
+        DISPLAY_WIDTH,
+        DISPLAY_HEIGHT);
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    (void) window;
+    (void) xpos;
+    (void) ypos;
+    gnf_mouse_move(&gnf, xpos, ypos);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    (void) mods;
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            gnf_mouse_down(&gnf);
+        }
+
+        if (action == GLFW_RELEASE) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            gnf_mouse_up(&gnf);
+        }
+    }
+}
+
+static void load_and_select_pkg(gnfContext *gnf) {
+//     std::string sourcePath = argv[2];
+
+    // create a new Base object
+    libdnf::Base & base = gnf->base;
+    auto & conf = base.get_config();
+    std::string installroot("/home/amatej/usr/src/gnf2/build");
+    conf.installroot().set(libdnf::Option::Priority::RUNTIME, installroot);
+    conf.cachedir().set(libdnf::Option::Priority::RUNTIME, installroot + "/var/cache/dnf");
+    auto & repo_sack = base.get_rpm_repo_sack();
+    repo_sack.new_repos_from_file("/etc/yum.repos.d/fedora-rawhide.repo");
+    auto repos = repo_sack.new_query();
+
+    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "35"}, };
+
+    // create a reference to the Base's rpm_sack for better code readability
+    auto & solv_sack = base.get_rpm_solv_sack();
+
+    using LoadFlags = libdnf::rpm::SolvSack::LoadRepoFlags;
+    auto flags = LoadFlags::USE_FILELISTS | LoadFlags::USE_PRESTO | LoadFlags::USE_UPDATEINFO | LoadFlags::USE_OTHER;
+
+    for (auto & repo : repos.get_data()) {
+        (*repo.get()).set_substitutions(m);
+        (*repo.get()).load();
+        solv_sack.load_repo((*repo.get()), flags);
+    }
+}
+
 int main(void)
 {
-    GLFWwindow* window;
-    glfwSetErrorCallback(error_callback);
     if (!glfwInit())
         exit(EXIT_FAILURE);
-    window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow* window = glfwCreateWindow(DISPLAY_WIDTH, DISPLAY_HEIGHT, "gnf", NULL, NULL);
+
     if (!window)
     {
+        fprintf(stderr, "ERROR: could not create a window.\n");
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
     glfwMakeContextCurrent(window);
-    glfwSetKeyCallback(window, key_callback);
+
+    glewInit();
+
+    glEnable(GL_DEBUG_OUTPUT);
+
+    glDebugMessageCallback(MessageCallback, 0);
+
+
+    glfwSetFramebufferSizeCallback(window, window_size_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    GLuint vert_shader = 0;
+    if (!compile_shader_source(vert_shader_source, GL_VERTEX_SHADER, &vert_shader)) {
+        exit(1);
+    }
+
+    GLuint frag_shader = 0;
+    if (!compile_shader_source(frag_shader_source, GL_FRAGMENT_SHADER, &frag_shader)) {
+        exit(1);
+    }
+
+    GLuint program = 0;
+    if (!link_program(vert_shader, frag_shader, &program)) {
+        exit(1);
+    }
+    glUseProgram(program);
+
+    GLuint resolutionUniform = glGetUniformLocation(program, "resolution");
+    glUniform2f(resolutionUniform,
+                (float) DISPLAY_WIDTH,
+                (float) DISPLAY_HEIGHT);
+
+    gnf_GL gnf_gl = {0};
+
+    gnf_gl_begin(&gnf_gl, &gnf);
+
+    load_and_select_pkg(&gnf);
+    packageLayoutData pkgLayout = {
+        .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
+        .requires = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
+        .provides = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
+    };
+    load_package_data(&gnf, &pkgLayout, "libdnf");
+
 
     while (!glfwWindowShouldClose(window))
     {
-        float ratio;
-        int width, height;
+        gnf_begin(&gnf);
 
-        glfwGetFramebufferSize(window, &width, &height);
+        layout_package(&gnf, &pkgLayout);
 
-        ratio = width / (float) height;
-        glViewport(0, 0, width, height);
+        if (gnf.mouse_buttons & BUTTON_LEFT) {
+            if (gnf.active == 0) {
+                gnf.view_offset = vec2(gnf.view_offset.x - gnf.mouse_pos_delta.x, gnf.view_offset.y - gnf.mouse_pos_delta.y);
+                gnf.mouse_pos_delta = vec2(0, 0);
+            }
+        }
+
+        gnf_end(&gnf);
+
+        glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(-ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        glRotatef((float) glfwGetTime() * 50.f, 0.f, 0.f, 1.f);
 
-        glBegin(GL_TRIANGLES);
-        glColor3f(1.f, 0.f, 0.f);
-        glVertex3f(-0.6f, -0.4f, 0.f);
-        glColor3f(0.f, 1.f, 0.f);
-        glVertex3f(0.6f, -0.4f, 0.f);
-        glColor3f(0.f, 0.f, 1.f);
-        glVertex3f(0.f, 0.6f, 0.f);
-        glEnd();
+        gnf_gl_render(&gnf_gl, &gnf);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
     glfwDestroyWindow(window);
     glfwTerminate();
+
     exit(EXIT_SUCCESS);
+
 }
 
-
-
-//    if (glfwVulkanSupported())
-//    {
-//        printf("Supported vulkan\n\n");
-//        // Vulkan is available, at least for compute
-//    } else {
-//        printf("vulkan not Supported\n\n");
-//    }
-//
-//
-//    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-//    GLFWwindow* window = glfwCreateWindow(640, 480, "Window Title", NULL, NULL);
-    //VkSurfaceKHR surface;
-    //VkResult err = glfwCreateWindowSurface(instance, window, NULL, &surface);
-    //if (err)
-    //{
-    //    // Window surface creation failed
-    //}
-
-
-//    getchar(); // wait for ENTER
-
-
-//    GLFWwindow* window;
-//    GLuint vertex_buffer, vertex_shader, fragment_shader, program;
-//    GLint mvp_location, vpos_location, vcol_location;
-// 
-//    glfwSetErrorCallback(error_callback);
-// 
-//    if (!glfwInit())
-//        exit(EXIT_FAILURE);
-// 
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-//
-//        window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
-//    if (!window)
-//    {
-//        glfwTerminate();
-//        exit(EXIT_FAILURE);
-//    }
-// 
-//    glfwSetKeyCallback(window, key_callback);
-// 
-//    glfwMakeContextCurrent(window);
-//    gladLoadGL(glfwGetProcAddress);
-//    glfwSwapInterval(1);
-// 
-//    // NOTE: OpenGL error checks have been omitted for brevity
-// 
-//    glGenBuffers(1, &vertex_buffer);
-//    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-//    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-// 
-//    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-//    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
-//    glCompileShader(vertex_shader);
-// 
-//    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-//    glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
-//    glCompileShader(fragment_shader);
-// 
-//    program = glCreateProgram();
-//    glAttachShader(program, vertex_shader);
-//    glAttachShader(program, fragment_shader);
-//    glLinkProgram(program);
-// 
-//    mvp_location = glGetUniformLocation(program, "MVP");
-//    vpos_location = glGetAttribLocation(program, "vPos");
-//    vcol_location = glGetAttribLocation(program, "vCol");
-// 
-//    glEnableVertexAttribArray(vpos_location);
-//    glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
-//                          sizeof(vertices[0]), (void*) 0);
-//    glEnableVertexAttribArray(vcol_location);
-//    glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,
-//                          sizeof(vertices[0]), (void*) (sizeof(float) * 2));
-// 
-//    while (!glfwWindowShouldClose(window))
-//    {
-//        float ratio;
-//        int width, height;
-//        mat4x4 m, p, mvp;
-// 
-//        glfwGetFramebufferSize(window, &width, &height);
-//        ratio = width / (float) height;
-// 
-//        glViewport(0, 0, width, height);
-//        glClear(GL_COLOR_BUFFER_BIT);
-// 
-//        mat4x4_identity(m);
-//        mat4x4_rotate_Z(m, m, (float) glfwGetTime());
-//        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-//        mat4x4_mul(mvp, p, m);
-// 
-//        glUseProgram(program);
-//        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) mvp);
-//        glDrawArrays(GL_TRIANGLES, 0, 3);
-// 
-//        glfwSwapBuffers(window);
-//        glfwPollEvents();
-//    }
-// 
-//    glfwDestroyWindow(window);
-// 
-//    glfwTerminate();
-//    exit(EXIT_SUCCESS);
-
-
-//
-//	return 0;
-//}
