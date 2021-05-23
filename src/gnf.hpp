@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include <string.h>
+#include <math.h>
 
 #include <libdnf/base/base.hpp>
 #include <libdnf/rpm/repo.hpp>
@@ -279,9 +280,10 @@ static const unsigned char FONT[FONT_WIDTH * FONT_HEIGHT] = {
 #define VERTICES_CAPACITY (1024 * 1024 * 10)
 #define TRIANGLES_CAPACITY (1024 * 1024 * 10)
 
-#define GNF_BUTTON_COLOR rgba(0.0f, 0.8f, 0.0f, 1.0f)
-#define GNF_BUTTON_COLOR_HOT rgba(0.0f, 1.0f, 0.0f, 1.0f)
+#define GNF_BUTTON_COLOR rgba(0.36f, 0.847f, 0.35f, 1.0f)
+#define GNF_BUTTON_COLOR_HOT rgba(0.0627f, 0.470f, 0.411f, 1.0f)
 #define GNF_BUTTON_COLOR_ACTIVE rgba(1.0f, 0.0f, 0.0f, 1.0f)
+#define GNF_PACKAGE_COLOR_TEXT_BG rgba(0.0f, 0.0f, 0.0f, 1.0f)
 #define GNF_BUTTON_TEXT_SCALE 1.0f
 #define GNF_BUTTON_TEXT_COLOR rgba(1.0f, 1.0f, 1.0f, 1.0f)
 
@@ -295,6 +297,11 @@ Vec2 vec2(float x, float y)
     return (Vec2) {
         x, y
     };
+}
+
+Vec2 normalize(Vec2 i) {
+    float len = sqrt(i.x*i.x + i.y*i.y);
+    return vec2(i.x/len, i.y/len);
 }
 
 #define RGBA_COUNT 4
@@ -367,6 +374,9 @@ typedef struct {
 
 static unsigned int gnf_append_vertex(gnfContext *gnf, Vertex v)
 {
+    v.position = vec2(v.position.x + gnf->view_offset.x, v.position.y + gnf->view_offset.y);
+
+    //const Vec2 p = vec2(position.x + gnf->view_offset.x, position.y + gnf->view_offset.y);
     assert(gnf->vertices_count < VERTICES_CAPACITY);
     unsigned int result = gnf->vertices_count;
     gnf->vertices[gnf->vertices_count++] = v;
@@ -458,6 +468,40 @@ void gnf_render_char(gnfContext *gnf, Vec2 p, float s, RGBA color, char c)
     }
 }
 
+static bool gnf_rect_contains(gnfContext *gnf, Vec2 p, Vec2 s)
+{
+    Vec2 t = gnf->mouse_pos;
+    p = vec2(p.x + gnf->view_offset.x, p.y + gnf->view_offset.y);
+    return p.x <= t.x && t.x < p.x + s.x &&
+           p.y <= t.y && t.y < p.y + s.y;
+}
+
+bool gnf_render_selectable_text(gnfContext *gnf, Vec2 p, float s, RGBA text_color, const char *text, bool active)
+{
+    const size_t n = strlen(text);
+    bool hot = false;
+    bool cursos_overlap = gnf_rect_contains(gnf, p, vec2(n*FONT_CHAR_WIDTH*s, FONT_CHAR_HEIGHT*s));
+    if (cursos_overlap || active) {
+        gnf_fill_rect(
+            gnf,
+            vec2(p.x, p.y),
+            vec2(n*FONT_CHAR_WIDTH*s, FONT_CHAR_HEIGHT*s),
+            GNF_PACKAGE_COLOR_TEXT_BG);
+        if (cursos_overlap) {
+            hot = true;
+        }
+    }
+    for (size_t i = 0; i < n; ++i) {
+        gnf_render_char(
+            gnf,
+            vec2(p.x + i * s * FONT_CHAR_WIDTH, p.y),
+            s,
+            text_color,
+            text[i]);
+    }
+    return hot;
+}
+
 void gnf_render_text(gnfContext *gnf, Vec2 p, float s, RGBA color, const char *text)
 {
     const size_t n = strlen(text);
@@ -469,12 +513,6 @@ void gnf_render_text(gnfContext *gnf, Vec2 p, float s, RGBA color, const char *t
             color,
             text[i]);
     }
-}
-
-static bool gnf_rect_contains(Vec2 p, Vec2 s, Vec2 t)
-{
-    return p.x <= t.x && t.x < p.x + s.x &&
-           p.y <= t.y && t.y < p.y + s.y;
 }
 
 void gnf_mouse_down(gnfContext *gnf)
@@ -506,16 +544,13 @@ void gnf_text(gnfContext *gnf, const char *text)
     (void) text;
 }
 
-bool gnf_button(gnfContext *gnf, Vec2 position, Vec2 size, const char *text, gnf_ID id)
+bool gnf_button(gnfContext *gnf, Vec2 p, Vec2 s, const char *text, gnf_ID id)
 {
-    const Vec2 p = vec2(position.x + gnf->view_offset.x, position.y + gnf->view_offset.y);
-    const Vec2 s = size;
-
     bool clicked = false;
     RGBA color = GNF_BUTTON_COLOR;
 
     if (gnf->active != id) {
-        if (gnf_rect_contains(p, s, gnf->mouse_pos)) {
+        if (gnf_rect_contains(gnf, p, s)) {
             if (gnf->mouse_buttons & BUTTON_LEFT) {
                 if (gnf->active == 0) {
                     gnf->active = id;
@@ -526,7 +561,7 @@ bool gnf_button(gnfContext *gnf, Vec2 position, Vec2 size, const char *text, gnf
     } else {
         color = GNF_BUTTON_COLOR_ACTIVE;
         if (!(gnf->mouse_buttons & BUTTON_LEFT)) {
-            if (gnf_rect_contains(p, s, gnf->mouse_pos)) {
+            if (gnf_rect_contains(gnf, p, s)) {
                 clicked = true;
             }
             gnf->active = 0;
@@ -546,8 +581,8 @@ bool gnf_button(gnfContext *gnf, Vec2 position, Vec2 size, const char *text, gnf
     gnf_render_text(
         gnf,
         vec2(
-            p.x + size.x * 0.5f - text_width * 0.5f,
-            p.y + size.y * 0.5f - text_height * 0.5f),
+            p.x + s.x * 0.5f - text_width * 0.5f,
+            p.y + s.y * 0.5f - text_height * 0.5f),
         GNF_BUTTON_TEXT_SCALE,
         GNF_BUTTON_TEXT_COLOR,
         text);
@@ -555,53 +590,31 @@ bool gnf_button(gnfContext *gnf, Vec2 position, Vec2 size, const char *text, gnf
     return clicked;
 }
 
-bool gnf_package(gnfContext *gnf, Vec2 position, Vec2 size, const char *text, gnf_ID id)
-{
-    const Vec2 p = vec2(position.x + gnf->view_offset.x, position.y + gnf->view_offset.y);
-    const Vec2 s = size;
+void gnf_fill_quad(gnfContext *gnf, Vec2 p1, Vec2 p2, Vec2 p3, Vec2 p4, RGBA c) {
+    const unsigned int pv1 = gnf_append_vertex(gnf, vertex(p1, c));
+    const unsigned int pv2 = gnf_append_vertex(gnf, vertex(p2, c));
+    const unsigned int pv3 = gnf_append_vertex(gnf, vertex(p3, c));
+    const unsigned int pv4 = gnf_append_vertex(gnf, vertex(p4, c));
 
-    bool clicked = false;
-    RGBA color = GNF_BUTTON_COLOR;
+    gnf_append_triangle(gnf, triangle(pv1, pv2, pv3));
+    gnf_append_triangle(gnf, triangle(pv2, pv3, pv4));
 
-    //TODO(amatej): this somehow shouldn't be here
-    if (gnf->active != id) {
-        if (gnf_rect_contains(p, s, gnf->mouse_pos)) {
-            if (gnf->mouse_buttons & BUTTON_LEFT) {
-                if (gnf->active == 0) {
-                    gnf->active = id;
-                }
-            }
-            color = GNF_BUTTON_COLOR_HOT;
-        }
-    } else {
-        color = GNF_BUTTON_COLOR_ACTIVE;
-        if (!(gnf->mouse_buttons & BUTTON_LEFT)) {
-            if (gnf_rect_contains(p, s, gnf->mouse_pos)) {
-                clicked = true;
-            }
-            gnf->active = 0;
-        }
-    }
+}
 
-    gnf_fill_rect(
-        gnf,
-        p,
-        s,
-        color);
+void gnf_draw_line(gnfContext *gnf, Vec2 start, Vec2 end, float thickness, RGBA color) {
+    thickness = thickness/2;
+    Vec2 vector = vec2(end.x - start.x, end.y - start.y);
+    Vec2 perp_vec1 = normalize(vec2(-1*vector.y, vector.x));
+    Vec2 perp_vec2 = normalize(vec2(vector.y, -1*vector.x));
 
-    const float text_height = FONT_CHAR_HEIGHT * GNF_BUTTON_TEXT_SCALE;
-    const float text_width = FONT_CHAR_WIDTH * GNF_BUTTON_TEXT_SCALE * strlen(text);
+    //Parametric eq -> new_point = old_point + t * dir
+    Vec2 start_p1 = vec2(start.x + thickness*perp_vec1.x, start.y + thickness*perp_vec1.y);
+    Vec2 start_p2 = vec2(start.x + thickness*perp_vec2.x, start.y + thickness*perp_vec2.y);
 
-    gnf_render_text(
-        gnf,
-        vec2(
-            p.x,
-            p.y - text_height * 1.1f),
-        GNF_BUTTON_TEXT_SCALE,
-        GNF_BUTTON_TEXT_COLOR,
-        text);
+    Vec2 end_p1 = vec2(end.x + thickness*perp_vec1.x, end.y + thickness*perp_vec1.y);
+    Vec2 end_p2 = vec2(end.x + thickness*perp_vec2.x, end.y + thickness*perp_vec2.y);
 
-    return clicked;
+    gnf_fill_quad(gnf, start_p1, start_p2, end_p1, end_p2, color);
 }
 
 void gnf_end(gnfContext *gnf)

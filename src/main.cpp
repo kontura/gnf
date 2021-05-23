@@ -208,10 +208,13 @@ void window_size_callback(GLFWwindow* window, int width, int height)
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    (void) window;
-    (void) xpos;
-    (void) ypos;
-    gnf_mouse_move(&gnf, xpos, ypos);
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+
+    const double offset_x = width/2 - DISPLAY_WIDTH/2;
+    const double offset_y = height/2 - DISPLAY_HEIGHT/2;
+
+    gnf_mouse_move(&gnf, xpos-offset_x, ypos-offset_y);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -321,9 +324,15 @@ int main(void)
 
     load_and_select_pkg(&gnf);
     packageLayoutData pkgLayout = {
-        .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
-        .requires = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
-        .provides = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack())),
+        //TODO(amatej): don't store queries but packagesets? or no?
+        .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .requires = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .provides = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .reqs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .provs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
     };
     load_package_data(&gnf, &pkgLayout, "libdnf");
 
@@ -340,6 +349,8 @@ int main(void)
                 gnf.mouse_pos_delta = vec2(0, 0);
             }
         }
+
+        //search_box(&gnf);
 
         gnf_end(&gnf);
 
