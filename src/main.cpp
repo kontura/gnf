@@ -1,5 +1,6 @@
 #include "gnf.hpp"
 #include "package_layout.hpp"
+#include "text_input.hpp"
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -231,11 +232,42 @@ void MessageCallback(GLenum source,
             type, severity, message);
 }
 
+static std::string UnicodeToUTF8(unsigned int codepoint)
+{
+    std::string out;
+
+    if (codepoint <= 0x7f) {
+        out.append(1, static_cast<char>(codepoint));
+    } else if (codepoint <= 0x7ff) {
+        out.append(1, static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f)));
+        out.append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else if (codepoint <= 0xffff) {
+        out.append(1, static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f)));
+        out.append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+        out.append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else {
+        out.append(1, static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07)));
+        out.append(1, static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+        out.append(1, static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+        out.append(1, static_cast<char>(0x80 | (codepoint & 0x3f)));
+    }
+    return out;
+}
+
+static void character_callback(GLFWwindow* window, unsigned int codepoint)
+{
+    gnf_set_pressed_character(&gnf, *(UnicodeToUTF8(codepoint).c_str()));
+}
+
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+    if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS)
+        gnf_set_pressed_key(&gnf, GNF_KEY_BACKSPACE);
+    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
+        gnf_set_pressed_key(&gnf, GNF_KEY_ENTER);
 }
 
 void window_size_callback(GLFWwindow* window, int width, int height)
@@ -347,6 +379,9 @@ int main(void)
     glfwSetFramebufferSizeCallback(window, window_size_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCharCallback(window, character_callback);
+
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -390,6 +425,10 @@ int main(void)
     };
     load_package_data(&gnf, &pkgLayout, "libdnf");
 
+    textInputData inputBox = {
+        .input = "libdnf",
+    };
+
     double nbFrames = 0;
     double lastTime = 0;
 
@@ -406,13 +445,22 @@ int main(void)
             }
         }
 
-        //search_box(&gnf);
 
-        char buf[4];
-        gcvt(fps(&nbFrames, &lastTime), 4, buf);
+        gnf.absolute_screen_coords = true;
+        {
+            char buf[4];
+            gcvt(fps(&nbFrames, &lastTime), 4, buf);
+            gnf_render_text(&gnf, vec2(0,0), GNF_PACKAGE_HEADER_SCALE, GNF_WHITE, buf);
 
-        gnf_render_text(&gnf, vec2(0,0), GNF_PACKAGE_HEADER_SCALE, GNF_WHITE, buf);
+            if (gnf_text_input_box(&gnf, &inputBox, vec2(2*FONT_CHAR_HEIGHT, 2*FONT_CHAR_HEIGHT), vec2(20*FONT_CHAR_WIDTH*2, FONT_CHAR_HEIGHT*2))) {
+                load_package_data(&gnf, &pkgLayout, inputBox.input);
+            }
+
+        }
+        gnf.absolute_screen_coords = false;
+
         //printf("vertices counte: %lu\n", gnf.vertices_count);
+        //printf("pressed key: %c\n", gnf.pressed_key);
         gnf_end(&gnf);
 
 

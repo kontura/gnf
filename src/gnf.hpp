@@ -12,8 +12,8 @@
 
 #include "font.hpp"
 
-#define VERTICES_CAPACITY (1024 * 1024 * 10)
-#define TRIANGLES_CAPACITY (1024 * 1024 * 10)
+#define VERTICES_CAPACITY (1024 * 1024)
+#define TRIANGLES_CAPACITY (1024 * 1024)
 
 #define GNF_BUTTON_COLOR rgba(0.36f, 0.847f, 0.35f, 1.0f)
 #define GNF_BUTTON_COLOR_HOT rgba(0.0627f, 0.470f, 0.411f, 1.0f)
@@ -23,6 +23,7 @@
 #define GNF_BUTTON_TEXT_COLOR rgba(1.0f, 1.0f, 1.0f, 1.0f)
 
 #define GNF_WHITE rgba(1.0f, 1.0f, 1.0f, 1.0f)
+#define GNF_BLACK rgba(0.0f, 0.0f, 0.0f, 1.0f)
 
 typedef struct {
     float x, y;
@@ -89,6 +90,12 @@ typedef enum {
     BUTTON_LEFT = 1,
 } Buttons;
 
+typedef enum {
+    GNF_KEY_NONE = 0,
+    GNF_KEY_BACKSPACE = 1,
+    GNF_KEY_ENTER = 2,
+} Key;
+
 typedef int gnf_ID;
 
 typedef struct {
@@ -99,6 +106,8 @@ typedef struct {
     Vec2 mouse_pos;
     Vec2 mouse_pos_delta;
     Buttons mouse_buttons;
+    Key pressed_key;
+    char pressed_character;
 
     Vec2 view_offset;
 
@@ -110,11 +119,14 @@ typedef struct {
     Vec2 last_widget_position;
 
     libdnf::Base base;
+
+    bool absolute_screen_coords;
 } gnfContext;
 
 static unsigned int gnf_append_vertex(gnfContext *gnf, Vertex v)
 {
-    v.position = vec2(v.position.x + gnf->view_offset.x, v.position.y + gnf->view_offset.y);
+    v.position = vec2(v.position.x + (gnf->view_offset.x * !gnf->absolute_screen_coords),
+                      v.position.y + (gnf->view_offset.y * !gnf->absolute_screen_coords));
 
     //const Vec2 p = vec2(position.x + gnf->view_offset.x, position.y + gnf->view_offset.y);
     assert(gnf->vertices_count < VERTICES_CAPACITY);
@@ -205,7 +217,8 @@ void gnf_render_char(gnfContext *gnf, Vec2 p, float s, RGBA color, int c)
 static bool gnf_rect_contains(gnfContext *gnf, Vec2 p, Vec2 s)
 {
     Vec2 t = gnf->mouse_pos;
-    p = vec2(p.x + gnf->view_offset.x, p.y + gnf->view_offset.y);
+    p = vec2(p.x + (gnf->view_offset.x * !gnf->absolute_screen_coords),
+             p.y + (gnf->view_offset.y * !gnf->absolute_screen_coords));
     return p.x <= t.x && t.x < p.x + s.x &&
            p.y <= t.y && t.y < p.y + s.y;
 }
@@ -263,6 +276,14 @@ void gnf_mouse_move(gnfContext *gnf, float x, float y)
 {
     gnf->mouse_pos_delta = vec2(gnf->mouse_pos.x - x, gnf->mouse_pos.y - y);
     gnf->mouse_pos = vec2(x, y);
+}
+
+void gnf_set_pressed_character(gnfContext *gnf, const char character) {
+    gnf->pressed_character = character;
+}
+
+void gnf_set_pressed_key(gnfContext *gnf, Key key) {
+    gnf->pressed_key = key;
 }
 
 void gnf_begin(gnfContext *gnf)
