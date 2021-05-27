@@ -305,6 +305,18 @@ static void load_and_select_pkg(gnfContext *gnf) {
     }
 }
 
+static float fps(double *nbFrames, double *lastTime) {
+    // Measure speed
+    double currentTime = glfwGetTime();
+    double delta = currentTime - *lastTime;
+    (*nbFrames)++;
+    if ( delta >= 1.0 ){ // If last cout was more than 1 sec ago
+        *nbFrames = 0;
+        *lastTime += 1.0;
+    }
+    return (*nbFrames)/delta;
+}
+
 int main(void)
 {
     if (!glfwInit())
@@ -378,6 +390,8 @@ int main(void)
     };
     load_package_data(&gnf, &pkgLayout, "libdnf");
 
+    double nbFrames = 0;
+    double lastTime = 0;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -394,8 +408,13 @@ int main(void)
 
         //search_box(&gnf);
 
-        printf("vertices counte: %lu\n", gnf.vertices_count);
+        char buf[4];
+        gcvt(fps(&nbFrames, &lastTime), 4, buf);
+
+        gnf_render_text(&gnf, vec2(0,0), GNF_PACKAGE_HEADER_SCALE, GNF_WHITE, buf);
+        //printf("vertices counte: %lu\n", gnf.vertices_count);
         gnf_end(&gnf);
+
 
         glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);

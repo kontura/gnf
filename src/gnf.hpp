@@ -22,6 +22,8 @@
 #define GNF_BUTTON_TEXT_SCALE 1.0f
 #define GNF_BUTTON_TEXT_COLOR rgba(1.0f, 1.0f, 1.0f, 1.0f)
 
+#define GNF_WHITE rgba(1.0f, 1.0f, 1.0f, 1.0f)
+
 typedef struct {
     float x, y;
 } Vec2;
