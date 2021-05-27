@@ -13,8 +13,8 @@
 
 typedef struct {
     libdnf::rpm::SolvQuery package;
-    libdnf::rpm::SolvQuery requires;
-    libdnf::rpm::SolvQuery provides;
+    libdnf::rpm::SolvQuery my_dependencies;
+    libdnf::rpm::SolvQuery dependent_on_me;
     libdnf::rpm::ReldepList reqs;
     libdnf::rpm::ReldepList provs;
     libdnf::rpm::ReldepList selectedActiveProvideReldeps;
@@ -144,7 +144,7 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
                                        GNF_BUTTON_TEXT_COLOR,
                                        req.get_name(),
                                        active)) {
-            auto copy_provides_query = libdnf::rpm::SolvQuery(pkgLayout->requires);
+            auto copy_provides_query = libdnf::rpm::SolvQuery(pkgLayout->my_dependencies);
             pkgLayout->selectedActiveRequireReldeps = rel_list;
             pkgLayout->selectedActivePoint = vec2(p.x, p.y + GNF_PADDING + i*(text_height * 1.1f) - text_height/2);
         }
@@ -172,7 +172,6 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
                                        GNF_BUTTON_TEXT_COLOR,
                                        prov.get_name(),
                                        active)) {
-            auto cq = libdnf::rpm::SolvQuery(pkgLayout->provides);
             pkgLayout->selectedActiveProvideReldeps = rel_list;
             pkgLayout->selectedActivePoint = vec2(p.x + s.x, p.y + GNF_PADDING + i*(text_height * 1.1f) - text_height/2);
         }
@@ -198,8 +197,8 @@ bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p
             }
             color = GNF_BUTTON_COLOR_HOT;
             //We know we are either working with provides or requires -> though this doesn't scale to recommends, supplementes..
-            auto copy_query_provides = libdnf::rpm::SolvQuery(pkgLayout->provides);
-            auto copy_query_requires = libdnf::rpm::SolvQuery(pkgLayout->requires);
+            auto copy_query_provides = libdnf::rpm::SolvQuery(pkgLayout->dependent_on_me);
+            auto copy_query_requires = libdnf::rpm::SolvQuery(pkgLayout->my_dependencies);
             copy_query_provides.ifilter_nevra({pkg->get_nevra()});
             copy_query_requires.ifilter_nevra({pkg->get_nevra()});
             if (copy_query_provides.size() > 0) {
@@ -283,8 +282,8 @@ void load_package_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::strin
     pkgLayout->provs = pkg.get_provides();
 
     pkgLayout->package = main_pkg;
-    pkgLayout->requires = requires.ifilter_arch({"x86_64", "noarch"}).ifilter_provides(pkgLayout->reqs);
-    pkgLayout->provides = provides.ifilter_arch({"x86_64", "noarch"}).ifilter_requires(pkgLayout->provs);
+    pkgLayout->my_dependencies = requires.ifilter_arch({"x86_64", "noarch"}).ifilter_provides(pkgLayout->reqs);
+    pkgLayout->dependent_on_me = provides.ifilter_arch({"x86_64", "noarch"}).ifilter_requires(pkgLayout->provs);
 
 }
 
@@ -300,7 +299,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
     pkgLayout->selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf->base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY);
     int i = 0;
     //TODO(amatej): fix the naming in pkgLayout (provides and requires are confusing)
-    for(auto pkg: pkgLayout->provides) {
+    for(auto pkg: pkgLayout->dependent_on_me) {
         Vec2 button_pos = vec2(mid_width + size_of_main_pkg.x + 50.0f + (150 * ((i/16))), mid_height-30*16 + 55*(i%16));
         if (gnf_package_collapsed(gnf,
                                   pkgLayout,
@@ -316,8 +315,8 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
     }
 
     i = 0;
-    for(auto pkg: pkgLayout->requires) {
-        Vec2 button_pos = vec2(mid_width-150, mid_height-30*pkgLayout->requires.size() + 55*i);
+    for(auto pkg: pkgLayout->my_dependencies) {
+        Vec2 button_pos = vec2(mid_width-150, mid_height-30*pkgLayout->my_dependencies.size() + 55*i);
         if (gnf_package_collapsed(gnf,
                                   pkgLayout,
                                   button_pos,
@@ -330,6 +329,9 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
         global_id++;
         i++;
     }
+
+    //printf("pkgLayout->dependent_on_me size: %lu\n", pkgLayout->dependent_on_me.size());
+    //printf("pkgLayout->my_dependencies size: %lu\n", pkgLayout->my_dependencies.size());
 
     pkgLayout->selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));
     pkgLayout->selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));

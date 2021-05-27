@@ -380,8 +380,8 @@ int main(void)
     packageLayoutData pkgLayout = {
         //TODO(amatej): don't store queries but packagesets? or no?
         .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .requires = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .provides = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .my_dependencies = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .dependent_on_me = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
         .reqs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .provs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
