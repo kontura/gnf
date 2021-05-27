@@ -24,10 +24,6 @@ typedef struct {
     Vec2 selectedActivePoint;
 } packageLayoutData;
 
-typedef struct {
-
-} packageLayout;
-
 Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 position, gnf_ID id)
 {
     //TODO(amatej): this pkg should be one specific NEVRA (there should be tabs or some such for different available nevras)
