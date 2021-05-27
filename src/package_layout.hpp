@@ -5,6 +5,7 @@
 #include <libdnf/rpm/repo.hpp>
 #include <libdnf/rpm/solv_query.hpp>
 #include "gnf.hpp"
+#include "util.hpp"
 
 #define GNF_PADDING 10.0f
 #define GNF_BUTTON_SIZE vec2(100.0f, 50.0f)
@@ -215,25 +216,33 @@ bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p
             auto single_pkg_query2 = libdnf::rpm::SolvQuery(&solv_sack, libdnf::rpm::SolvQuery::InitFlags::EMPTY);
             single_pkg_query1.add(*pkg);
             single_pkg_query2.add(*pkg);
-            // We need to connection point on a different side of the button depending on what we are doing
-            // TODO(amatej): this could maybe be fixed by picking the shortests path?
-            if (single_pkg_query1.ifilter_provides(pkgLayout->selectedActiveRequireReldeps).size()) {
-                color = GNF_BUTTON_COLOR_HOT;
-                gnf_draw_line(gnf,
-                              vec2(p.x + GNF_BUTTON_SIZE.x,
-                                   p.y + GNF_BUTTON_SIZE.y/2),
-                              vec2(p.x + pkgLayout->selectedActivePoint.x - p.x,
-                                   p.y + pkgLayout->selectedActivePoint.y - p.y),
-                              2.0f, GNF_PACKAGE_COLOR_TEXT_BG);
+            //// We need to connection point on a different side of the button depending on what we are doing
+            //// TODO(amatej): this could maybe be fixed by picking the shortests path?
+            //// The following query is also a huge performace blow (have a hashtable? (keys are reldeps, values are packages that provide/need them)
+            if (pkgLayout->selectedActiveRequireReldeps.size() > 0) {
+                //TODO(amatej): this ifilter_provides is just shomehow very broken -> since it takes forever for empty stuff
+                //if (single_pkg_query1.ifilter_provides(pkgLayout->selectedActiveRequireReldeps).size()) {
+                if (reldeplist_contains((*pkg).get_provides(), pkgLayout->selectedActiveRequireReldeps.get(0))) {
+                    color = GNF_BUTTON_COLOR_HOT;
+                    gnf_draw_line(gnf,
+                            vec2(p.x + GNF_BUTTON_SIZE.x,
+                                p.y + GNF_BUTTON_SIZE.y/2),
+                            vec2(p.x + pkgLayout->selectedActivePoint.x - p.x,
+                                p.y + pkgLayout->selectedActivePoint.y - p.y),
+                            2.0f, GNF_PACKAGE_COLOR_TEXT_BG);
+                }
             }
-            if (single_pkg_query2.ifilter_requires(pkgLayout->selectedActiveProvideReldeps).size()) {
-                color = GNF_BUTTON_COLOR_HOT;
-                gnf_draw_line(gnf,
-                              vec2(p.x,
-                                   p.y + GNF_BUTTON_SIZE.y/2),
-                              vec2(p.x + pkgLayout->selectedActivePoint.x - p.x,
-                                   p.y + pkgLayout->selectedActivePoint.y - p.y),
-                              2.0f, GNF_PACKAGE_COLOR_TEXT_BG);
+            if (pkgLayout->selectedActiveProvideReldeps.size() > 0) {
+                //if (single_pkg_query2.ifilter_requires(pkgLayout->selectedActiveProvideReldeps).size()) {
+                if (reldeplist_contains((*pkg).get_requires(), pkgLayout->selectedActiveProvideReldeps.get(0))) {
+                    color = GNF_BUTTON_COLOR_HOT;
+                    gnf_draw_line(gnf,
+                                  vec2(p.x,
+                                       p.y + GNF_BUTTON_SIZE.y/2),
+                                  vec2(p.x + pkgLayout->selectedActivePoint.x - p.x,
+                                       p.y + pkgLayout->selectedActivePoint.y - p.y),
+                                  2.0f, GNF_PACKAGE_COLOR_TEXT_BG);
+                }
             }
         }
     } else {
