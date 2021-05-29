@@ -281,14 +281,16 @@ void load_package_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::strin
     libdnf::rpm::SolvQuery provides(&solv_sack);
 
     main_pkg.ifilter_arch({"x86_64", "noarch"}).ifilter_latest(1).ifilter_name({pkg_name});
-    auto pkg = *main_pkg.begin();
+    if (main_pkg.size() > 0) {
+        auto pkg = *main_pkg.begin();
 
-    pkgLayout->reqs = pkg.get_requires();
-    pkgLayout->provs = pkg.get_provides();
+        pkgLayout->reqs = pkg.get_requires();
+        pkgLayout->provs = pkg.get_provides();
 
-    pkgLayout->package = main_pkg;
-    pkgLayout->my_dependencies = requires.ifilter_arch({"x86_64", "noarch"}).ifilter_provides(pkgLayout->reqs);
-    pkgLayout->dependent_on_me = provides.ifilter_arch({"x86_64", "noarch"}).ifilter_requires(pkgLayout->provs);
+        pkgLayout->package = main_pkg;
+        pkgLayout->my_dependencies = requires.ifilter_arch({"x86_64", "noarch"}).ifilter_provides(pkgLayout->reqs);
+        pkgLayout->dependent_on_me = provides.ifilter_arch({"x86_64", "noarch"}).ifilter_requires(pkgLayout->provs);
+    }
 
 }
 
