@@ -450,7 +450,7 @@ int main(void)
 
         if (gnf.mouse_buttons & BUTTON_LEFT) {
             if (gnf.active == 0) {
-                gnf.view_offset = vec2(gnf.view_offset.x - gnf.mouse_pos_delta.x, gnf.view_offset.y - gnf.mouse_pos_delta.y);
+                gnf.view_offset = vec2(gnf.view_offset.x - 2*gnf.mouse_pos_delta.x, gnf.view_offset.y - 2*gnf.mouse_pos_delta.y);
                 gnf.mouse_pos_delta = vec2(0, 0);
             }
         }
