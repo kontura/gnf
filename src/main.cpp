@@ -456,6 +456,9 @@ int main(void)
         }
 
 
+        //Debug - show where the app thinks the mouse is (draw black square)
+        //gnf_fill_rect(&gnf, vec2(gnf.mouse_pos.x - gnf.view_offset.x, gnf.mouse_pos.y-gnf.view_offset.y), vec2(10,10), GNF_BLACK);
+
         gnf.absolute_screen_coords = true;
         {
             char buf[4];
