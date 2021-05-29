@@ -16,6 +16,7 @@
 gnfContext gnf = {
     .width = DISPLAY_WIDTH,
     .height = DISPLAY_HEIGHT,
+    .zoom = 1.0f,
 };
 
 //TODO(amatej): Do not render stuff outside of view, but how though?
@@ -259,6 +260,11 @@ static void character_callback(GLFWwindow* window, unsigned int codepoint)
     gnf_set_pressed_character(&gnf, *(UnicodeToUTF8(codepoint).c_str()));
 }
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    gnf.zoom -= yoffset/4;
+}
+
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -284,11 +290,15 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
     int width, height;
     glfwGetWindowSize(window, &width, &height);
+    //printf("width: %lu, height: %lu\n", width, height);
+    //printf("gnf.width: %lu, gnf.height: %lu\n", gnf.width, gnf.height);
+    //printf("xpos: %f, ypos: %f\n", xpos, ypos);
 
-    const double offset_x = width/2 - DISPLAY_WIDTH/2;
-    const double offset_y = height/2 - DISPLAY_HEIGHT/2;
+    const double offset_x = (width/2.0f - DISPLAY_WIDTH/2.0f) * gnf.zoom;
+    const double offset_y = (height/2.0f - DISPLAY_HEIGHT/2.0f) * gnf.zoom;
+    //printf("computed offset_x: %f, offset_y: %f\n", offset_x, offset_y);
 
-    gnf_mouse_move(&gnf, xpos-offset_x, ypos-offset_y);
+    gnf_mouse_move(&gnf, xpos*gnf.zoom-offset_x, ypos*gnf.zoom-offset_y);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -358,7 +368,7 @@ int main(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(DISPLAY_WIDTH, DISPLAY_HEIGHT, "gnf", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "gnf", NULL, NULL);
 
     if (!window)
     {
@@ -381,7 +391,7 @@ int main(void)
     glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetCharCallback(window, character_callback);
-
+    glfwSetScrollCallback(window, scroll_callback);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -403,9 +413,6 @@ int main(void)
     glUseProgram(program);
 
     GLuint resolutionUniform = glGetUniformLocation(program, "resolution");
-    glUniform2f(resolutionUniform,
-                (float) DISPLAY_WIDTH,
-                (float) DISPLAY_HEIGHT);
 
     gnf_GL gnf_gl = {0};
 
@@ -434,6 +441,9 @@ int main(void)
 
     while (!glfwWindowShouldClose(window))
     {
+        gnf.width = DISPLAY_WIDTH * gnf.zoom;
+        gnf.height = DISPLAY_HEIGHT * gnf.zoom;
+        glUniform2f(resolutionUniform, (float) gnf.width, (float) gnf.height);
         gnf_begin(&gnf);
 
         layout_package(&gnf, &pkgLayout);

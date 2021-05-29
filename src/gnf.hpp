@@ -110,6 +110,7 @@ typedef struct {
     char pressed_character;
 
     Vec2 view_offset;
+    float zoom;
 
     Vertex vertices[VERTICES_CAPACITY];
     size_t vertices_count;
@@ -274,7 +275,9 @@ void gnf_mouse_up(gnfContext *gnf)
 
 void gnf_mouse_move(gnfContext *gnf, float x, float y)
 {
+    //Use to delta to move the screen view
     gnf->mouse_pos_delta = vec2(gnf->mouse_pos.x - x, gnf->mouse_pos.y - y);
+
     gnf->mouse_pos = vec2(x, y);
 }
 
