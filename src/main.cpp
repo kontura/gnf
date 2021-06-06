@@ -319,9 +319,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-static void load_and_select_pkg(gnfContext *gnf) {
-//     std::string sourcePath = argv[2];
-
+static void initialize_libdnf(gnfContext *gnf) {
     // create a new Base object
     libdnf::Base & base = gnf->base;
     auto & conf = base.get_config();
@@ -329,10 +327,11 @@ static void load_and_select_pkg(gnfContext *gnf) {
     conf.installroot().set(libdnf::Option::Priority::RUNTIME, installroot);
     conf.cachedir().set(libdnf::Option::Priority::RUNTIME, installroot + "/var/cache/dnf");
     auto & repo_sack = base.get_rpm_repo_sack();
-    repo_sack.new_repos_from_file("/etc/yum.repos.d/fedora-rawhide.repo");
+    repo_sack.new_repos_from_file("/home/amatej/usr/src/gnf/fedora.repo");
+    repo_sack.new_repos_from_file("/home/amatej/usr/src/gnf/fedora-updates.repo");
     auto repos = repo_sack.new_query();
 
-    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "35"}, };
+    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "34"}, };
 
     // create a reference to the Base's rpm_sack for better code readability
     auto & solv_sack = base.get_rpm_solv_sack();
@@ -418,7 +417,7 @@ int main(void)
 
     gnf_gl_begin(&gnf_gl, &gnf);
 
-    load_and_select_pkg(&gnf);
+    initialize_libdnf(&gnf);
     packageLayoutData pkgLayout = {
         //TODO(amatej): don't store queries but packagesets? or no?
         .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
