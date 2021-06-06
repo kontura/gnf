@@ -1,4 +1,3 @@
-#include "gnf.hpp"
 #include "package_layout.hpp"
 #include "text_input.hpp"
 
@@ -420,16 +419,20 @@ int main(void)
     initialize_libdnf(&gnf);
     packageLayoutData pkgLayout = {
         //TODO(amatej): don't store queries but packagesets? or no?
-        .package = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .active_name_packages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
         .my_dependencies = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
         .dependent_on_me = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .my_conflicts = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .obsoleted_by_me = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
         .reqs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .provs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .conflicts = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
+        .obsoletes = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
     };
-    load_package_data(&gnf, &pkgLayout, "libdnf");
+    load_package_data(&gnf, &pkgLayout, "libdnf", 0);
 
     textInputData inputBox = {
         .input = "libdnf",
@@ -446,6 +449,7 @@ int main(void)
         gnf_begin(&gnf);
 
         layout_package(&gnf, &pkgLayout);
+
 
         if (gnf.mouse_buttons & BUTTON_LEFT) {
             if (gnf.active == 0) {
@@ -465,7 +469,7 @@ int main(void)
             gnf_render_text(&gnf, vec2(0,0), GNF_PACKAGE_HEADER_SCALE, GNF_WHITE, buf);
 
             if (gnf_text_input_box(&gnf, &inputBox, vec2(2*FONT_CHAR_HEIGHT, 2*FONT_CHAR_HEIGHT), vec2(20*FONT_CHAR_WIDTH*2, FONT_CHAR_HEIGHT*2))) {
-                load_package_data(&gnf, &pkgLayout, inputBox.input);
+                load_package_data(&gnf, &pkgLayout, inputBox.input, 0);
             }
 
         }

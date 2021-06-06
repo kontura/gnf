@@ -27,6 +27,8 @@ include_directories( ${LIBDNF_SOURCE_DIR} )
 
 add_executable(gnf
     src/main.cpp
+    src/gui.cpp
+    src/package_layout.cpp
 )
 
 pkg_check_modules(GLFW3 REQUIRED glfw3)
