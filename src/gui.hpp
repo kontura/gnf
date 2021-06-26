@@ -33,6 +33,7 @@ struct Vec2 {
 Vec2 vec2(float x, float y);
 Vec2 operator*(const Vec2& v1, float s);
 Vec2 operator+(const Vec2& v1, const Vec2& v2);
+Vec2 operator+=(Vec2& v1, const Vec2& v2);
 Vec2 operator-(const Vec2& v1, const Vec2& v2);
 Vec2 normalize(Vec2 i);
 
@@ -72,6 +73,11 @@ typedef enum {
     GNF_KEY_ENTER = 2,
 } Key;
 
+typedef enum {
+    GNF_GUI_STATE_PACKAGE_LAYOUT = 0,
+    GNF_GUI_STATE_PACKAGE_GRAPH = 1,
+} GUIState;
+
 typedef int gnf_ID;
 
 typedef struct {
@@ -98,6 +104,8 @@ typedef struct {
     libdnf::Base base;
 
     bool absolute_screen_coords;
+
+    GUIState state;
 } gnfContext;
 
 void gnf_render_char(gnfContext *gnf, Vec2 p, float s, RGBA color, int c);

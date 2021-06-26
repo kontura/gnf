@@ -1,7 +1,7 @@
 #include "package_layout.hpp"
 #include "util.hpp"
 
-void load_package_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::string pkg_name, size_t index) {
+void load_package_layout_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::string pkg_name, size_t index) {
     auto & solv_sack = gnf->base.get_rpm_solv_sack();
     libdnf::rpm::SolvQuery main_pkg(&solv_sack);
     pkgLayout->package_index = index;
@@ -33,6 +33,8 @@ void load_package_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::strin
         printf("pkgLayout->obsoleted_by_me size: %lu\n", pkgLayout->obsoleted_by_me.size());
         printf("pkgLayout->my_conflicts size: %lu\n", pkgLayout->my_conflicts.size());
     }
+
+    gnf->state = GNF_GUI_STATE_PACKAGE_LAYOUT;
 
 }
 
@@ -100,7 +102,7 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
         RGBA draw_color;
         if (gnf_rect_contains(gnf, p, s) && !gnf_rect_contains(gnf, p_next, s)) {
             if (gnf->mouse_buttons & BUTTON_LEFT) {
-                load_package_data(gnf, pkgLayout, pkg_tmp.get_name(), package_index);
+                load_package_layout_data(gnf, pkgLayout, pkg_tmp.get_name(), package_index);
             }
             draw_color = other_focused_color + rgba(.2, .2, .2, 0);
         } else {
@@ -356,7 +358,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
     int i = 0;
     //TODO(amatej): fix the naming in pkgLayout (provides and requires are confusing)
     for(auto pkg: pkgLayout->dependent_on_me) {
-        Vec2 button_pos = vec2(mid_width + size_of_main_pkg.x + 50.0f + (50 * ((i/16))), mid_height-30*16 + 25*(i%16));
+        Vec2 button_pos = vec2(mid_width + size_of_main_pkg.x + 50.0f + 50, mid_height-30*16 + 25*i);
         if (gnf_package_collapsed(gnf,
                                   pkgLayout,
                                   button_pos,
@@ -364,7 +366,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
                                   GNF_BLACK,
                                   global_id)) {
             printf("clicked: %s\n", pkg.get_nevra().c_str());
-            load_package_data(gnf, pkgLayout, pkg.get_name(), 0);
+            load_package_layout_data(gnf, pkgLayout, pkg.get_name(), 0);
         }
         global_id++;
         i++;
@@ -380,7 +382,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
                                   GNF_BLACK,
                                   global_id)) {
             printf("clicked: %s\n", pkg.get_nevra().c_str());
-            load_package_data(gnf, pkgLayout, pkg.get_name(), 0);
+            load_package_layout_data(gnf, pkgLayout, pkg.get_name(), 0);
         }
         global_id++;
         i++;
@@ -396,7 +398,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
                                   GNF_PKG_OBSOLETE_COLOR,
                                   global_id)) {
             printf("clicked: %s\n", pkg.get_nevra().c_str());
-            load_package_data(gnf, pkgLayout, pkg.get_name(), 0);
+            load_package_layout_data(gnf, pkgLayout, pkg.get_name(), 0);
         }
         global_id++;
         i++;
@@ -412,11 +414,13 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
                                   GNF_PKG_CONFLICT_COLOR,
                                   global_id)) {
             printf("clicked: %s\n", pkg.get_nevra().c_str());
-            load_package_data(gnf, pkgLayout, pkg.get_name(), 0);
+            load_package_layout_data(gnf, pkgLayout, pkg.get_name(), 0);
         }
         global_id++;
         i++;
     }
+
+    //TODO(amatej): need to add weak deps: recommends, suppl...
 
     pkgLayout->selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));
     pkgLayout->selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));

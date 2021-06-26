@@ -13,6 +13,10 @@ Vec2 operator*(const Vec2& v1, float s) {
 Vec2 operator+(const Vec2& v1, const Vec2& v2) {
     return vec2(v1.x+v2.x, v1.y+v2.y);
 }
+Vec2 operator+=(Vec2& v1, const Vec2& v2) {
+    v1 = vec2(v1.x+v2.x, v1.y+v2.y);
+    return v1;
+}
 Vec2 operator-(const Vec2& v1, const Vec2& v2) {
     return vec2(v1.x-v2.x, v1.y-v2.y);
 }

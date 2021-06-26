@@ -1,4 +1,5 @@
 #include "package_layout.hpp"
+#include "package_graph.hpp"
 #include "text_input.hpp"
 
 #define GLEW_STATIC
@@ -432,7 +433,11 @@ int main(void)
         .selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
         .selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
     };
-    load_package_data(&gnf, &pkgLayout, "libdnf", 0);
+    load_package_layout_data(&gnf, &pkgLayout, "libdnf", 0);
+    packageGraphData pkgGraph = {
+        .active_name_packages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .nodes = {},
+    };
 
     textInputData inputBox = {
         .input = "libdnf",
@@ -448,7 +453,11 @@ int main(void)
         glUniform2f(resolutionUniform, (float) gnf.width, (float) gnf.height);
         gnf_begin(&gnf);
 
-        layout_package(&gnf, &pkgLayout);
+        if (gnf.state == GNF_GUI_STATE_PACKAGE_LAYOUT) {
+            layout_package(&gnf, &pkgLayout);
+        } if (gnf.state == GNF_GUI_STATE_PACKAGE_GRAPH) {
+            layout_graph(&gnf, &pkgGraph);
+        }
 
 
         if (gnf.mouse_buttons & BUTTON_LEFT) {
@@ -468,8 +477,14 @@ int main(void)
             gcvt(fps(&nbFrames, &lastTime), 4, buf);
             gnf_render_text(&gnf, vec2(0,0), GNF_PACKAGE_HEADER_SCALE, GNF_WHITE, buf);
 
-            if (gnf_text_input_box(&gnf, &inputBox, vec2(2*FONT_CHAR_HEIGHT, 2*FONT_CHAR_HEIGHT), vec2(20*FONT_CHAR_WIDTH*2, FONT_CHAR_HEIGHT*2))) {
-                load_package_data(&gnf, &pkgLayout, inputBox.input, 0);
+            Vec2 position = vec2(2*FONT_CHAR_HEIGHT, 2*FONT_CHAR_HEIGHT);
+            if (gnf_text_input_box(&gnf, &inputBox, position, vec2(20*FONT_CHAR_WIDTH*2, FONT_CHAR_HEIGHT*2))) {
+                load_package_layout_data(&gnf, &pkgLayout, inputBox.input, 0);
+            }
+
+            position += vec2(0, FONT_CHAR_HEIGHT*3);
+            if (gnf_button(&gnf, position, vec2(20,20), "deps", 33)) {
+                load_package_graph_data(&gnf, &pkgGraph, inputBox.input, 0);
             }
 
         }

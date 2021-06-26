@@ -23,6 +23,7 @@ typedef struct {
     libdnf::rpm::SolvQuery my_conflicts;
     libdnf::rpm::SolvQuery obsoleted_by_me;
     libdnf::rpm::ReldepList reqs;
+    //TODO(amatej): It seems the provs are somehow broken or more coplicated? bash should be needed by systemd-rpm-macros (which requires it) but it doesn't show up
     libdnf::rpm::ReldepList provs;
     libdnf::rpm::ReldepList conflicts;
     libdnf::rpm::ReldepList obsoletes;
@@ -32,7 +33,7 @@ typedef struct {
     Vec2 selectedActivePoint;
 } packageLayoutData;
 
-void load_package_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::string pkg_name, size_t index);
+void load_package_layout_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::string pkg_name, size_t index);
 Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 position, gnf_ID id);
 bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p, libdnf::rpm::Package *pkg, RGBA color, gnf_ID id);
 void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout);
