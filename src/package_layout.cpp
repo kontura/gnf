@@ -2,11 +2,11 @@
 #include "util.hpp"
 
 void load_package_layout_data(gnfContext *gnf, packageLayoutData *pkgLayout, std::string pkg_name, size_t index) {
-    auto & solv_sack = gnf->base.get_rpm_solv_sack();
-    libdnf::rpm::SolvQuery main_pkg(&solv_sack);
+    libdnf5::rpm::PackageQuery main_pkg(gnf->base);
     pkgLayout->package_index = index;
 
-    main_pkg.resolve_pkg_spec(pkg_name, true, true, true, true, false, {});
+    const libdnf5::ResolveSpecSettings settings{.ignore_case = true, .with_provides = false};
+    main_pkg.resolve_pkg_spec(pkg_name, settings, true);
     if (main_pkg.size() > 0) {
         auto pkg = main_pkg.begin();
         for (int i=0; i<pkgLayout->package_index; i++) {
@@ -23,10 +23,14 @@ void load_package_layout_data(gnfContext *gnf, packageLayoutData *pkgLayout, std
 
         pkgLayout->active_name_packages = main_pkg;
 
-        pkgLayout->my_dependencies = libdnf::rpm::SolvQuery(&solv_sack).ifilter_provides(pkgLayout->reqs);
-        pkgLayout->my_conflicts = libdnf::rpm::SolvQuery(&solv_sack).ifilter_provides(pkgLayout->conflicts);
-        pkgLayout->obsoleted_by_me = libdnf::rpm::SolvQuery(&solv_sack).ifilter_provides(pkgLayout->obsoletes);
-        pkgLayout->dependent_on_me = libdnf::rpm::SolvQuery(&solv_sack).ifilter_requires(pkgLayout->provs);
+        pkgLayout->my_dependencies = libdnf5::rpm::PackageQuery(gnf->base);
+        pkgLayout->my_dependencies.filter_provides(pkgLayout->reqs);
+        pkgLayout->my_conflicts = libdnf5::rpm::PackageQuery(gnf->base);
+        pkgLayout->my_conflicts.filter_provides(pkgLayout->conflicts);
+        pkgLayout->obsoleted_by_me = libdnf5::rpm::PackageQuery(gnf->base);
+        pkgLayout->obsoleted_by_me.filter_provides(pkgLayout->obsoletes);
+        pkgLayout->dependent_on_me = libdnf5::rpm::PackageQuery(gnf->base);
+        pkgLayout->dependent_on_me.filter_requires(pkgLayout->provs);
 
         //printf("pkgLayout->dependent_on_me size: %lu\n", pkgLayout->dependent_on_me.size());
         //printf("pkgLayout->my_dependencies size: %lu\n", pkgLayout->my_dependencies.size());
@@ -41,8 +45,6 @@ void load_package_layout_data(gnfContext *gnf, packageLayoutData *pkgLayout, std
 Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 position, gnf_ID id)
 {
     //TODO(amatej): this pkg should be one specific NEVRA (there should be tabs or some such for different available nevras)
-    auto & solv_sack = gnf->base.get_rpm_solv_sack();
-
     auto pkg = pkgLayout->active_name_packages.begin();
     for (int i=0; i<pkgLayout->package_index; i++) {
         pkg++;
@@ -184,11 +186,12 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
     p.y += GNF_PADDING + text_height;
     int i = 0;
     for (auto req : pkgLayout->reqs) {
-        libdnf::rpm::ReldepList rel_list(&solv_sack);
+        libdnf5::rpm::ReldepList rel_list(gnf->base);
         rel_list.add(req);
-        auto copy_query = libdnf::rpm::SolvQuery(pkgLayout->selectedActivePackages);
+        auto copy_query = libdnf5::rpm::PackageQuery(pkgLayout->selectedActivePackages);
+        copy_query.filter_provides(rel_list);
         bool active = false;
-        if (copy_query.ifilter_provides(rel_list).size() > 0) {
+        if (copy_query.size() > 0) {
             gnf_draw_line(gnf,
                           pkgLayout->selectedActivePoint,
                           vec2(p.x, p.y + GNF_PADDING + i*(text_height * 1.1f) - text_height/2),
@@ -202,7 +205,7 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
                                        GNF_BUTTON_TEXT_COLOR,
                                        req.get_name(),
                                        active)) {
-            auto copy_provides_query = libdnf::rpm::SolvQuery(pkgLayout->my_dependencies);
+            auto copy_provides_query = libdnf5::rpm::PackageQuery(pkgLayout->my_dependencies);
             pkgLayout->selectedActiveRequireReldeps = rel_list;
             pkgLayout->selectedActivePoint = vec2(p.x, p.y + GNF_PADDING + i*(text_height * 1.1f) - text_height/2);
         }
@@ -212,11 +215,12 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
     i = 0;
     for (auto prov : pkgLayout->provs) {
         const float prov_width = FONT_CHAR_WIDTH * GNF_PACKAGE_TEXT_SCALE * strlen(prov.get_name());
-        libdnf::rpm::ReldepList rel_list(&solv_sack);
+        libdnf5::rpm::ReldepList rel_list(gnf->base);
         rel_list.add(prov);
-        auto copy_query = libdnf::rpm::SolvQuery(pkgLayout->selectedActivePackages);
+        auto copy_query = libdnf5::rpm::PackageQuery(pkgLayout->selectedActivePackages);
+        copy_query.filter_requires(rel_list);
         bool active = false;
-        if (copy_query.ifilter_requires(rel_list).size() > 0) {
+        if (copy_query.size() > 0) {
             gnf_draw_line(gnf,
                           pkgLayout->selectedActivePoint,
                           vec2(p.x+s.x-GNF_PADDING, p.y + GNF_PADDING + i*(text_height * 1.1f) - text_height/2),
@@ -239,9 +243,8 @@ Vec2 gnf_package_expanded(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 po
     return s;
 }
 
-bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p, libdnf::rpm::Package *pkg, RGBA color, gnf_ID id)
+bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p, libdnf5::rpm::Package *pkg, RGBA color, gnf_ID id)
 {
-    auto & solv_sack = gnf->base.get_rpm_solv_sack();
     bool clicked = false;
     const size_t name_len = strlen(pkg->get_nevra().c_str());
     const float text_height = FONT_CHAR_HEIGHT * GNF_BUTTON_TEXT_SCALE;
@@ -259,10 +262,10 @@ bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p
             color = GNF_BUTTON_COLOR_HOT;
             //TODO(amatej): we need to fix this: when on createrepo_c and I hover rpm nothing happens..
             //We know we are either working with provides or requires -> though this doesn't scale to recommends, supplementes..
-            auto copy_query_provides = libdnf::rpm::SolvQuery(pkgLayout->dependent_on_me);
-            auto copy_query_requires = libdnf::rpm::SolvQuery(pkgLayout->my_dependencies);
-            copy_query_provides.ifilter_nevra({pkg->get_nevra()});
-            copy_query_requires.ifilter_nevra({pkg->get_nevra()});
+            auto copy_query_provides = libdnf5::rpm::PackageQuery(pkgLayout->dependent_on_me);
+            auto copy_query_requires = libdnf5::rpm::PackageQuery(pkgLayout->my_dependencies);
+            copy_query_provides.filter_nevra({pkg->get_nevra()});
+            copy_query_requires.filter_nevra({pkg->get_nevra()});
             if (copy_query_provides.size() > 0) {
                 pkgLayout->selectedActivePoint = vec2(p.x, p.y + s.y/2);
             }
@@ -273,8 +276,8 @@ bool gnf_package_collapsed(gnfContext *gnf, packageLayoutData *pkgLayout, Vec2 p
             pkgLayout->selectedActivePackages = copy_query_provides;
         } else {
             // mouse not hovering the button
-            auto single_pkg_query1 = libdnf::rpm::SolvQuery(&solv_sack, libdnf::rpm::SolvQuery::InitFlags::EMPTY);
-            auto single_pkg_query2 = libdnf::rpm::SolvQuery(&solv_sack, libdnf::rpm::SolvQuery::InitFlags::EMPTY);
+            auto single_pkg_query1 = libdnf5::rpm::PackageQuery(gnf->base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true);
+            auto single_pkg_query2 = libdnf5::rpm::PackageQuery(gnf->base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true);
             single_pkg_query1.add(*pkg);
             single_pkg_query2.add(*pkg);
             //// We need to connection point on a different side of the button depending on what we are doing
@@ -354,7 +357,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
     Vec2 size_of_main_pkg = gnf_package_expanded(gnf, pkgLayout, vec2(mid_width, mid_height), global_id);
     global_id++;
 
-    pkgLayout->selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf->base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY);
+    pkgLayout->selectedActivePackages = libdnf5::rpm::PackageQuery(gnf->base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true);
     int i = 0;
     //TODO(amatej): fix the naming in pkgLayout (provides and requires are confusing)
     for(auto pkg: pkgLayout->dependent_on_me) {
@@ -422,7 +425,7 @@ void layout_package(gnfContext *gnf, packageLayoutData *pkgLayout) {
 
     //TODO(amatej): need to add weak deps: recommends, suppl...
 
-    pkgLayout->selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));
-    pkgLayout->selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf->base.get_rpm_solv_sack()));
+    pkgLayout->selectedActiveRequireReldeps = libdnf5::rpm::ReldepList(gnf->base);
+    pkgLayout->selectedActiveProvideReldeps = libdnf5::rpm::ReldepList(gnf->base);
 
 }

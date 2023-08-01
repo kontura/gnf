@@ -6,9 +6,8 @@
 #include <string.h>
 #include <math.h>
 
-#include <libdnf/base/base.hpp>
-#include <libdnf/rpm/repo.hpp>
-#include <libdnf/rpm/solv_query.hpp>
+#include <libdnf5/base/base.hpp>
+#include <libdnf5/rpm/package_query.hpp>
 
 #include "font.hpp"
 
@@ -101,7 +100,7 @@ typedef struct {
     size_t triangles_count;
     Vec2 last_widget_position;
 
-    libdnf::Base base;
+    libdnf5::Base base;
 
     bool absolute_screen_coords;
 

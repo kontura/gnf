@@ -321,29 +321,22 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 static void initialize_libdnf(gnfContext *gnf) {
     // create a new Base object
-    libdnf::Base & base = gnf->base;
+    libdnf5::Base & base = gnf->base;
     auto & conf = base.get_config();
-    std::string installroot("/home/amatej/usr/src/gnf2/build");
-    conf.installroot().set(libdnf::Option::Priority::RUNTIME, installroot);
-    conf.cachedir().set(libdnf::Option::Priority::RUNTIME, installroot + "/var/cache/dnf");
-    auto & repo_sack = base.get_rpm_repo_sack();
-    repo_sack.new_repos_from_file("/home/amatej/usr/src/gnf/fedora.repo");
-    repo_sack.new_repos_from_file("/home/amatej/usr/src/gnf/fedora-updates.repo");
-    auto repos = repo_sack.new_query();
+    //TODO(amatej): Do not hardcode
+    std::string installroot("/home/amatej/usr/src/gnf/build");
+    conf.get_installroot_option().set(libdnf5::Option::Priority::RUNTIME, installroot);
+    //TODO(amatej): Do not hardcode
+    conf.get_cachedir_option().set(libdnf5::Option::Priority::RUNTIME, installroot + "/var/cache/dnf");
+    base.setup();
+    auto repo_sack = base.get_repo_sack();
+    auto repo = repo_sack->create_repo("fedora");
+    //TODO(amatej): Do not hardcode
+    repo->get_config().get_metalink_option().set("https://mirrors.fedoraproject.org/metalink?repo=fedora-38&arch=x86_64");
+    repo_sack->update_and_load_enabled_repos(true);
+    auto q = libdnf5::rpm::PackageQuery(base);
 
-    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "34"}, };
-
-    // create a reference to the Base's rpm_sack for better code readability
-    auto & solv_sack = base.get_rpm_solv_sack();
-
-    using LoadFlags = libdnf::rpm::SolvSack::LoadRepoFlags;
-    auto flags = LoadFlags::USE_FILELISTS | LoadFlags::USE_PRESTO | LoadFlags::USE_UPDATEINFO | LoadFlags::USE_OTHER;
-
-    for (auto & repo : repos.get_data()) {
-        (*repo.get()).set_substitutions(m);
-        (*repo.get()).load();
-        solv_sack.load_repo((*repo.get()), flags);
-    }
+    std::map<std::string, std::string> m { {"basearch", "x86_64"}, {"releasever", "38"}, };
 }
 
 static float fps(double *nbFrames, double *lastTime) {
@@ -420,22 +413,22 @@ int main(void)
     initialize_libdnf(&gnf);
     packageLayoutData pkgLayout = {
         //TODO(amatej): don't store queries but packagesets? or no?
-        .active_name_packages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .my_dependencies = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .dependent_on_me = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .my_conflicts = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .obsoleted_by_me = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
-        .reqs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .provs = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .conflicts = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .obsoletes = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .selectedActiveProvideReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .selectedActiveRequireReldeps = libdnf::rpm::ReldepList(&(gnf.base.get_rpm_solv_sack())),
-        .selectedActivePackages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .active_name_packages = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
+        .my_dependencies = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
+        .dependent_on_me = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
+        .my_conflicts = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
+        .obsoleted_by_me = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
+        .reqs = libdnf5::rpm::ReldepList(gnf.base),
+        .provs = libdnf5::rpm::ReldepList(gnf.base),
+        .conflicts = libdnf5::rpm::ReldepList(gnf.base),
+        .obsoletes = libdnf5::rpm::ReldepList(gnf.base),
+        .selectedActiveProvideReldeps = libdnf5::rpm::ReldepList(gnf.base),
+        .selectedActiveRequireReldeps = libdnf5::rpm::ReldepList(gnf.base),
+        .selectedActivePackages = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
     };
     load_package_layout_data(&gnf, &pkgLayout, "libdnf", 0);
     packageGraphData pkgGraph = {
-        .active_name_packages = libdnf::rpm::SolvQuery(&(gnf.base.get_rpm_solv_sack()), libdnf::rpm::SolvQuery::InitFlags::EMPTY),
+        .active_name_packages = libdnf5::rpm::PackageQuery(gnf.base, libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true),
         .nodes = {},
     };
 

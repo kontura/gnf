@@ -4,9 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include <libdnf/base/base.hpp>
-#include <libdnf/rpm/repo.hpp>
-#include <libdnf/rpm/solv_query.hpp>
+#include <libdnf5/base/base.hpp>
+#include <libdnf5/rpm/package_query.hpp>
 
 #include "gui.hpp"
 
@@ -18,17 +17,18 @@ struct Node {
     int layer;
     //TODO(amatej): maybe we should keep just pointer to pkg
     //              but where would the packages live?
-    const libdnf::rpm::Package pkg;
+    const libdnf5::rpm::Package *pkg;
 };
 
 typedef std::unordered_map<int, std::vector<int>> PackageDependencyAdjacencyList;
 typedef std::unordered_map<int, Node> PackageMapById;
+typedef std::unordered_map<int, float> LayerCrossingNumbers;
 
 typedef struct {
-    libdnf::rpm::SolvQuery active_name_packages;
+    libdnf5::rpm::PackageQuery active_name_packages;
     int package_index;
     //libdnf::rpm::SolvQuery my_dependencies;
-    std::vector<libdnf::rpm::Package> deps;
+    std::vector<libdnf5::rpm::Package> deps;
     PackageMapById nodes;
     PackageDependencyAdjacencyList adjList;
 } packageGraphData;

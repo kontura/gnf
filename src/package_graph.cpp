@@ -1,6 +1,6 @@
 #include "package_graph.hpp"
 
-#include <libdnf/base/goal.hpp>
+#include <libdnf5/base/goal.hpp>
 #include <iostream>
 
 void dump_graph(PackageDependencyAdjacencyList *g, PackageMapById *m) {
@@ -180,15 +180,17 @@ void layout_graph(gnfContext *gnf, packageGraphData *pkgGraph) {
 }
 
 void load_package_graph_data(gnfContext *gnf, packageGraphData *pkgGraph, std::string pkg_name, size_t index) {
-    auto & solv_sack = gnf->base.get_rpm_solv_sack();
+    auto solv_sack = gnf->base.get_rpm_package_sack();
     //TODO(amatej): This should be configured with installroot?
     //              It works for me now since I am on 35 and working with 34 metadata.
     //              But what is the right behavior though?
-    libdnf::Goal goal(&(gnf->base));
+    libdnf5::Goal goal(gnf->base);
     goal.add_rpm_install(pkg_name);
-    goal.resolve(false);
+    auto trans = goal.resolve();
 
-    pkgGraph->deps = goal.list_rpm_installs();
+    for (const auto pkg : trans.get_transaction_packages()) {
+        pkgGraph->deps.push_back(pkg.get_package());
+    }
 
     std::vector<std::string> nevras;
     for (const auto pkg : pkgGraph->deps) {
@@ -196,7 +198,8 @@ void load_package_graph_data(gnfContext *gnf, packageGraphData *pkgGraph, std::s
     }
 
     //TODO(amatej): I might want to store this?
-    libdnf::rpm::SolvQuery pkgs = libdnf::rpm::SolvQuery(&solv_sack).ifilter_nevra(nevras);
+    libdnf5::rpm::PackageQuery pkgs(gnf->base);
+    pkgs.filter_nevra(nevras);
 
     // Adjacency list graph representation
     // maybe matrix or direct translation would be better?
@@ -207,8 +210,8 @@ void load_package_graph_data(gnfContext *gnf, packageGraphData *pkgGraph, std::s
         Node node = {vec2(0,tmp_x_coord*30), vec2(pkg_width,0), 0, pkg};
         pkgGraph->nodes.emplace(pkg.get_id().id, node);
 
-        auto copy_pkgs = libdnf::rpm::SolvQuery(pkgs);
-        copy_pkgs.ifilter_provides(pkg.get_requires());
+        auto copy_pkgs = libdnf5::rpm::PackageQuery(pkgs);
+        copy_pkgs.filter_provides((pkgGraph->deps[i]).get_requires());
 
         // Gather dependencies
         std::vector<int> dependencies;
